@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-BlueP: #0bb0e6;
+  --color-Darkgray: #151518;
+  --font-Poppins: "Poppins", sans-serif ;
+
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+body,html {
+  background-color: #151518;
+  font-family: "Montserrat", sans-serif;
+  overflow-x: hidden;
+
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.maxW {
+  margin: 0 auto;
+  padding: 0 2%;
+  max-width: 1420px;
+}
+
+.cardLinear {
+  background: linear-gradient(0deg, #0bb0e6 -500%, transparent 90%);
+}
+
+.outlined-text {
+  color: rgba(11, 176,230, 0.04);
+  -webkit-text-stroke: 1px #0bb0e6;
+  text-stroke: 2px #0bb0e6;
+}
+
+.outlined-text1 {
+  color: rgba(255, 255, 255, 0.08);
+  -webkit-text-stroke: 1px #ffffff;
+  text-stroke: 1px #ffffff;
+}
+
+.bgMain {
+  position: relative;
+  overflow: hidden;
+}
+
+/* 🔹 Fundo com imagem + blur */
+.bgMain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("/bg1.jpg");
+  /* coloque aqui a mesma imagem que usava antes */
+  background-size: cover;
+  background-position: center;
+  filter: blur(8px);
+  /* intensidade do blur */
+  transform: scale(1.08);
+  /* pra não aparecer borda borrada */
+  z-index: 0;
+}
+
+/* 🔹 Overlay por cima do fundo (sem mexer no texto) */
+.bgMain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  /* overlay escuro; ajuste a opacidade */
+  z-index: 1;
 }
