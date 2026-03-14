@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useMemo, useState } from "react";
 import {
@@ -10,80 +10,58 @@ import {
   FiEdit2,
   FiDollarSign,
 } from "react-icons/fi";
+import { adminMockService } from "@/services/admin/adminMockService";
+import { Lead } from "@/types/admin";
+import { MOCK_AFFILIATE_ID } from "../constants";
 
-type LeadStatus = "Prospect" | "Contato" | "Fechado";
+type DashboardLeadStatus = "Prospect" | "Contato" | "Fechado" | "Perdido";
 
-type Lead = {
-  id: number;
-  nome: string;
-  status: LeadStatus;
-  origem: string;
-  valor: number;
-  ultimoContato: string;
-  nota?: string;
-};
-
-const statusStyles: Record<LeadStatus, string> = {
+const statusStyles: Record<DashboardLeadStatus, string> = {
   Prospect: "bg-amber-500/15 text-amber-300 border border-amber-500/30",
   Contato: "bg-blue-500/15 text-blue-300 border border-blue-500/30",
   Fechado: "bg-green-500/15 text-green-300 border border-green-500/30",
+  Perdido: "bg-red-500/15 text-red-300 border border-red-500/30",
 };
 
-const initialLeads: Lead[] = [
-  {
-    id: 1,
-    nome: "Carla Lima",
-    status: "Fechado",
-    origem: "Instagram",
-    valor: 1800,
-    ultimoContato: "2025-11-21",
-    nota: "Fechou combo site + social",
-  },
-  {
-    id: 2,
-    nome: "Lucas Andrade",
-    status: "Contato",
-    origem: "WhatsApp",
-    valor: 1200,
-    ultimoContato: "2025-11-23",
-    nota: "Quer proposta detalhada",
-  },
-  {
-    id: 3,
-    nome: "Marta Campos",
-    status: "Prospect",
-    origem: "Indicacao",
-    valor: 900,
-    ultimoContato: "2025-11-20",
-  },
-  {
-    id: 4,
-    nome: "Studio Alpha",
-    status: "Fechado",
-    origem: "LinkedIn",
-    valor: 2400,
-    ultimoContato: "2025-11-18",
-    nota: "Retorno em 30 dias",
-  },
-];
+function mapStatus(status: Lead["status"]): DashboardLeadStatus {
+  if (status === "won") return "Fechado";
+  if (status === "lost") return "Perdido";
+  if (status === "new") return "Prospect";
+  return "Contato";
+}
 
 export default function Indicacoes() {
-  const [leads, setLeads] = useState<Lead[]>(initialLeads);
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingLead, setSavingLead] = useState(false);
   const [novoLead, setNovoLead] = useState({
     nome: "",
     origem: "",
     valor: "",
-    status: "Prospect" as LeadStatus,
     nota: "",
   });
 
+  React.useEffect(() => {
+    let mounted = true;
+
+    adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID).then((snapshot) => {
+      if (!mounted) return;
+      setLeads(snapshot.leads);
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
   const stats = useMemo(() => {
     const total = leads.length;
-    const fechados = leads.filter((l) => l.status === "Fechado");
-    const emContato = leads.filter((l) => l.status === "Contato");
-    const prospect = leads.filter((l) => l.status === "Prospect");
-    const receitaPrevista = leads.reduce((sum, l) => sum + l.valor, 0);
-    const receitaFechada = fechados.reduce((sum, l) => sum + l.valor, 0);
+    const fechados = leads.filter((l) => l.status === "won");
+    const emContato = leads.filter((l) => l.status === "qualified" || l.status === "proposal");
+    const prospect = leads.filter((l) => l.status === "new");
+    const receitaPrevista = leads.reduce((sum, l) => sum + l.potentialValue, 0);
+    const receitaFechada = fechados.reduce((sum, l) => sum + l.potentialValue, 0);
 
     return {
       total,
@@ -95,26 +73,38 @@ export default function Indicacoes() {
     };
   }, [leads]);
 
-  const addLead = (e: React.FormEvent) => {
+  const addLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!novoLead.nome.trim()) return;
 
-    const parsedValor = parseFloat(novoLead.valor) || 0;
+    setSavingLead(true);
+    await adminMockService.createLead({
+      affiliateId: MOCK_AFFILIATE_ID,
+      name: novoLead.nome.trim(),
+      origin: novoLead.origem.trim() || "Manual",
+      potentialValue: parseFloat(novoLead.valor) || 0,
+      notes: novoLead.nota.trim(),
+    });
 
-    setLeads((prev) => [
-      {
-        id: Date.now(),
-        nome: novoLead.nome.trim(),
-        origem: novoLead.origem.trim() || "Manual",
-        valor: parsedValor,
-        status: novoLead.status,
-        ultimoContato: new Date().toISOString().split("T")[0],
-        nota: novoLead.nota.trim() || undefined,
-      },
-      ...prev,
-    ]);
+    const snapshot = await adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID);
+    setLeads(snapshot.leads);
+    setNovoLead({ nome: "", origem: "", valor: "", nota: "" });
+    setSavingLead(false);
+  };
 
-    setNovoLead({ nome: "", origem: "", valor: "", status: "Prospect", nota: "" });
+  const quickProgressLead = async (lead: Lead) => {
+    const nextStatus: Lead["status"] =
+      lead.status === "new"
+        ? "qualified"
+        : lead.status === "qualified"
+          ? "proposal"
+          : lead.status === "proposal"
+            ? "won"
+            : lead.status;
+
+    await adminMockService.updateLead(lead.id, { status: nextStatus });
+    const snapshot = await adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID);
+    setLeads(snapshot.leads);
   };
 
   return (
@@ -123,8 +113,8 @@ export default function Indicacoes() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Minhas indicacoes</h1>
           <p className="text-slate-400 max-w-2xl">
-            Acompanhe prospects, contatos e fechamentos. Registre rapidamente novas
-            oportunidades e use o painel para ter clareza do seu funil.
+            Integrado ao Admin (modo mock): os leads que voce cadastra aqui
+            aparecem na gestao de leads do painel administrativo.
           </p>
         </div>
 
@@ -224,20 +214,7 @@ export default function Indicacoes() {
                   />
                 </div>
               </div>
-              <div>
-                <label className="text-sm text-slate-400">Status</label>
-                <select
-                  value={novoLead.status}
-                  onChange={(e) =>
-                    setNovoLead((p) => ({ ...p, status: e.target.value as LeadStatus }))
-                  }
-                  className="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-sky-500"
-                >
-                  <option value="Prospect">Prospect</option>
-                  <option value="Contato">Contato</option>
-                  <option value="Fechado">Fechado</option>
-                </select>
-              </div>
+
               <div>
                 <label className="text-sm text-slate-400">Nota</label>
                 <textarea
@@ -250,9 +227,10 @@ export default function Indicacoes() {
               </div>
               <button
                 type="submit"
-                className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 rounded-lg transition-colors"
+                disabled={savingLead}
+                className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2 rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Salvar lead
+                {savingLead ? "Salvando..." : "Salvar lead"}
               </button>
             </form>
           </div>
@@ -264,27 +242,6 @@ export default function Indicacoes() {
             <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
               Funil
             </span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
-            <BadgeCounter
-              title="Prospects"
-              value={stats.prospect}
-              color="text-sky-300"
-              bg="bg-sky-500/10"
-            />
-            <BadgeCounter
-              title="Em contato"
-              value={stats.emContato}
-              color="text-amber-300"
-              bg="bg-amber-500/10"
-            />
-            <BadgeCounter
-              title="Fechados"
-              value={stats.fechados}
-              color="text-green-300"
-              bg="bg-green-500/10"
-            />
           </div>
 
           <div className="overflow-x-auto">
@@ -301,53 +258,59 @@ export default function Indicacoes() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800">
-                {leads.map((lead) => (
-                  <tr key={lead.id} className="text-white/90">
-                    <td className="py-3 pr-3 font-semibold text-white">{lead.nome}</td>
-                    <td className="py-3 pr-3 text-slate-300">{lead.origem}</td>
-                    <td className="py-3 pr-3">
-                      <span
-                        className={`text-xs px-3 py-1 rounded-full ${statusStyles[lead.status]}`}
-                      >
-                        {lead.status}
-                      </span>
-                    </td>
-                    <td className="py-3 pr-3 text-slate-200">
-                      R$ {lead.valor.toLocaleString("pt-BR")}
-                    </td>
-                    <td className="py-3 pr-3 text-slate-400">{lead.ultimoContato}</td>
-                    <td className="py-3 pr-3 text-slate-400 max-w-[200px]">
-                      {lead.nota || "-"}
-                    </td>
-                    <td className="py-3">
-                      <button className="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200 text-xs">
-                        <FiEdit2 className="w-4 h-4" />
-                        Atualizar
-                      </button>
+                {loading ? (
+                  <tr>
+                    <td className="py-4 text-slate-400" colSpan={7}>
+                      Carregando leads...
                     </td>
                   </tr>
-                ))}
+                ) : leads.length === 0 ? (
+                  <tr>
+                    <td className="py-4 text-slate-400" colSpan={7}>
+                      Nenhum lead cadastrado ainda.
+                    </td>
+                  </tr>
+                ) : (
+                  leads.map((lead) => {
+                    const dashboardStatus = mapStatus(lead.status);
+
+                    return (
+                      <tr key={lead.id} className="text-white/90">
+                        <td className="py-3 pr-3 font-semibold text-white">{lead.name}</td>
+                        <td className="py-3 pr-3 text-slate-300">{lead.origin}</td>
+                        <td className="py-3 pr-3">
+                          <span
+                            className={`text-xs px-3 py-1 rounded-full ${statusStyles[dashboardStatus]}`}
+                          >
+                            {dashboardStatus}
+                          </span>
+                        </td>
+                        <td className="py-3 pr-3 text-slate-200">
+                          R$ {lead.potentialValue.toLocaleString("pt-BR")}
+                        </td>
+                        <td className="py-3 pr-3 text-slate-400">{lead.updatedAt}</td>
+                        <td className="py-3 pr-3 text-slate-400 max-w-[200px]">
+                          {lead.notes || "-"}
+                        </td>
+                        <td className="py-3">
+                          <button
+                            onClick={() => quickProgressLead(lead)}
+                            disabled={lead.status === "won" || lead.status === "lost"}
+                            className="inline-flex items-center gap-2 text-sky-300 hover:text-sky-200 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <FiEdit2 className="w-4 h-4" />
+                            Avancar etapa
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </div>
       </div>
     </section>
-  );
-}
-
-type BadgeCounterProps = {
-  title: string;
-  value: number;
-  color: string;
-  bg: string;
-};
-
-function BadgeCounter({ title, value, color, bg }: BadgeCounterProps) {
-  return (
-    <div className={`rounded-lg px-4 py-3 border border-slate-700 ${bg}`}>
-      <p className="text-slate-300 text-sm">{title}</p>
-      <p className={`text-2xl font-bold ${color}`}>{value}</p>
-    </div>
   );
 }

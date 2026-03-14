@@ -1,5 +1,6 @@
-"use client";
+﻿"use client";
 
+import { useEffect, useMemo, useState } from "react";
 import {
   FiCopy,
   FiLink,
@@ -9,30 +10,8 @@ import {
   FiInfo,
 } from "react-icons/fi";
 import { HiOutlineGift } from "react-icons/hi";
-
-const couponCode = "YOUON10";
-const couponLink = `https://youon.com/afiliado/${couponCode}`;
-
-const perks = [
-  {
-    label: "Comissao por venda",
-    value: "20%",
-    icon: FiTrendingUp,
-    accent: "text-green-400",
-  },
-  {
-    label: "Desconto para o cliente",
-    value: "10%",
-    icon: HiOutlineGift,
-    accent: "text-blue-400",
-  },
-  {
-    label: "Validade do cupom",
-    value: "Sem expiracao",
-    icon: FiClock,
-    accent: "text-orange-400",
-  },
-];
+import { adminMockService } from "@/services/admin/adminMockService";
+import { MOCK_AFFILIATE_ID } from "../constants";
 
 const guarantees = [
   {
@@ -67,22 +46,66 @@ const steps = [
   },
 ];
 
-const copyToClipboard = (value: string) => {
-  if (navigator?.clipboard) {
-    navigator.clipboard.writeText(value).catch(() => {});
-  }
-};
-
 export default function Cupon() {
+  const [loading, setLoading] = useState(true);
+  const [coupons, setCoupons] = useState<
+    Awaited<ReturnType<typeof adminMockService.getAffiliateDashboardData>>["coupons"]
+  >([]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID).then((snapshot) => {
+      if (!mounted) return;
+      setCoupons(snapshot.coupons);
+      setLoading(false);
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const currentCoupon = useMemo(() => coupons[0] ?? null, [coupons]);
+
+  const copyToClipboard = (value: string) => {
+    if (!value) return;
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(value).catch(() => {});
+    }
+  };
+
+  const perks = currentCoupon
+    ? [
+        {
+          label: "Comissao por venda",
+          value: `${currentCoupon.commissionPercent}%`,
+          icon: FiTrendingUp,
+          accent: "text-green-400",
+        },
+        {
+          label: "Desconto para o cliente",
+          value: `${currentCoupon.discountPercent}%`,
+          icon: HiOutlineGift,
+          accent: "text-blue-400",
+        },
+        {
+          label: "Validade do cupom",
+          value: currentCoupon.expiresAt ? currentCoupon.expiresAt : "Sem expiracao",
+          icon: FiClock,
+          accent: "text-orange-400",
+        },
+      ]
+    : [];
+
   return (
     <section className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Meu Cupom</h1>
           <p className="text-slate-400 max-w-2xl">
-            Seu codigo exclusivo para vender os servicos You On. Copie o cupom,
-            compartilhe o link monitorado e acompanhe o desempenho aqui mesmo
-            no painel.
+            Cupom conectado ao painel Admin (mock). Quando o Admin alterar cupons,
+            ativacao ou comissao, os dados aparecem aqui.
           </p>
         </div>
 
@@ -90,13 +113,11 @@ export default function Cupon() {
           <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-6 text-white shadow-lg">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="text-sm uppercase tracking-wide text-blue-100">
-                  Cupom ativo
-                </p>
+                <p className="text-sm uppercase tracking-wide text-blue-100">Cupom ativo</p>
                 <h2 className="text-3xl font-bold mt-1">YOU ON Afiliados</h2>
               </div>
               <span className="bg-white/20 text-xs px-3 py-1 rounded-full">
-                Sempre ligado
+                {currentCoupon ? "Sincronizado" : "Sem cupom"}
               </span>
             </div>
 
@@ -104,19 +125,20 @@ export default function Cupon() {
               <p className="text-sm text-blue-100 mb-1">Codigo do cupom</p>
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-3xl font-black tracking-[0.25em]">
-                  {couponCode}
+                  {loading ? "..." : currentCoupon?.code ?? "SEM-CUPOM"}
                 </span>
                 <button
-                  onClick={() => copyToClipboard(couponCode)}
-                  className="inline-flex items-center gap-2 bg-white text-blue-700 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
+                  onClick={() => copyToClipboard(currentCoupon?.code ?? "")}
+                  disabled={!currentCoupon}
+                  className="inline-flex items-center gap-2 bg-white text-blue-700 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <FiCopy className="w-4 h-4" />
                   Copiar
                 </button>
               </div>
               <p className="text-blue-100 text-sm mt-3">
-                Clientes ganham desconto imediato ao usar o cupom. Sua
-                comissao e rastreada automaticamente.
+                Clientes ganham desconto imediato ao usar o cupom. Sua comissao
+                e rastreada automaticamente.
               </p>
             </div>
 
@@ -125,12 +147,13 @@ export default function Cupon() {
                 <p className="text-sm text-blue-100 mb-1">Link direto</p>
                 <div className="flex items-center gap-2 text-sm break-all">
                   <FiLink className="w-4 h-4" />
-                  {couponLink}
+                  {currentCoupon?.link ?? "Sem link ativo"}
                 </div>
               </div>
               <button
-                onClick={() => copyToClipboard(couponLink)}
-                className="inline-flex items-center gap-2 bg-white/15 text-white px-4 py-3 rounded-lg font-semibold hover:bg-white/25 transition-colors"
+                onClick={() => copyToClipboard(currentCoupon?.link ?? "")}
+                disabled={!currentCoupon}
+                className="inline-flex items-center gap-2 bg-white/15 text-white px-4 py-3 rounded-lg font-semibold hover:bg-white/25 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <FiCopy className="w-4 h-4" />
                 Copiar link
@@ -139,9 +162,7 @@ export default function Cupon() {
           </div>
 
           <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-            <h3 className="text-xl font-bold text-white mb-4">
-              Regras e beneficios
-            </h3>
+            <h3 className="text-xl font-bold text-white mb-4">Regras e beneficios</h3>
             <div className="space-y-4">
               {guarantees.map(({ title, desc, icon: Icon }) => (
                 <div
@@ -162,40 +183,36 @@ export default function Cupon() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {perks.map(({ label, value, icon: Icon, accent }) => (
-            <div
-              key={label}
-              className="bg-slate-800 rounded-xl p-5 border border-slate-700"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-slate-400 text-sm">{label}</p>
-                <Icon className={`w-5 h-5 ${accent}`} />
-              </div>
-              <p className="text-3xl font-bold text-white">{value}</p>
-              <p className="text-slate-500 text-sm mt-1">
-                Vendas validadas entram na sua carteira automaticamente.
-              </p>
+          {perks.length === 0 ? (
+            <div className="md:col-span-3 rounded-xl border border-dashed border-slate-700 bg-slate-800 p-6 text-center text-slate-400">
+              Nenhum cupom ativo vinculado ao seu perfil.
             </div>
-          ))}
+          ) : (
+            perks.map(({ label, value, icon: Icon, accent }) => (
+              <div key={label} className="bg-slate-800 rounded-xl p-5 border border-slate-700">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-slate-400 text-sm">{label}</p>
+                  <Icon className={`w-5 h-5 ${accent}`} />
+                </div>
+                <p className="text-3xl font-bold text-white">{value}</p>
+                <p className="text-slate-500 text-sm mt-1">
+                  Configurado pelo Admin para seu perfil ou campanha.
+                </p>
+              </div>
+            ))
+          )}
         </div>
 
         <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-xl font-bold text-white">Como divulgar</h3>
-            <span className="text-xs uppercase tracking-[0.2em] text-slate-400">
-              Passo a passo
-            </span>
+            <span className="text-xs uppercase tracking-[0.2em] text-slate-400">Passo a passo</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {steps.map((step, index) => (
-              <div
-                key={step.title}
-                className="bg-slate-900 rounded-lg p-4 border border-slate-700"
-              >
+              <div key={step.title} className="bg-slate-900 rounded-lg p-4 border border-slate-700">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm text-slate-400">
-                    Etapa {index + 1}
-                  </span>
+                  <span className="text-sm text-slate-400">Etapa {index + 1}</span>
                   <span className="w-8 h-8 rounded-full bg-sky-500/20 text-sky-300 flex items-center justify-center font-bold">
                     {index + 1}
                   </span>

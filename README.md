@@ -34,3 +34,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+## Banco de Dados (Easypanel)
+
+Esta aplicacao agora usa PostgreSQL via API Routes para o `/admin` e `/dashboard`.
+
+1. Crie um banco PostgreSQL no Easypanel.
+2. Configure as variaveis de ambiente:
+   - `DATABASE_URL`
+   - `DATABASE_SSL` (`true` ou `false`)
+3. Aplique o schema do arquivo [`db/schema.sql`](./db/schema.sql).
+4. Rode a aplicacao.
+
+### Seed inicial
+
+Na primeira execucao, a aplicacao cria as tabelas e insere dados iniciais mockados automaticamente se o banco estiver vazio.

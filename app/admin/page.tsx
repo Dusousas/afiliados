@@ -1,58 +1,211 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
-import Sidebar from "./components/Sidebar";
-import HomeDashboard from "./components/HomeDashboard";
-import MaterialAdmin from "./components/MaterialAdmin";
-import CuponsAdmin from "./components/CuponsAdmin";
-import PremiosAdmin from "./components/PremiosAdmin";
-import IndicacoesAdmin from "./components/IndicacoesAdmin";
-import ConfigAdmin from "./components/config/ConfigAdmin";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { adminMockService } from "@/services/admin/adminMockService";
+import { Affiliate, Campaign, CampaignMaterial, CouponLink, Lead, PlatformSettings } from "@/types/admin";
+import { AdminHeader, AdminSectionId, AdminSidebar } from "./components/layout";
+import {
+  AdminDashboardModule,
+  AffiliatesModule,
+  CampaignsModule,
+  CommissionsModule,
+  CouponsModule,
+  LeadsModule,
+  ReportsModule,
+  SettingsModule,
+} from "./components/modules";
+import { LoadingCards } from "./components/ui";
 
-type SectionId =
-    | "dashboard"
-    | "cupom"
-    | "indicacoes"
-    | "materiais"
-    | "premios"
-    | "config"
-    | "notificacoes"
-    ;
+type AdminSnapshot = Awaited<ReturnType<typeof adminMockService.getAdminSnapshot>>;
 
-export default function DashboardPage() {
-    const [activeSection, setActiveSection] = useState<SectionId>("dashboard");
+export default function AdminPage() {
+  const [activeSection, setActiveSection] = useState<AdminSectionId>("dashboard");
+  const [snapshot, setSnapshot] = useState<AdminSnapshot | null>(null);
+  const [loading, setLoading] = useState(true);
 
-    const renderSection = () => {
-        switch (activeSection) {
-            case "dashboard":
-                return <HomeDashboard />;
+  // TODO: no backend de auth, trocar por guard real de role/perfil admin.
+  const hasAdminAccess = true;
 
-            case "materiais":
-                return <MaterialAdmin />;
+  useEffect(() => {
+    let mounted = true;
 
-            case "premios":
-                return (
-                    <PremiosAdmin />
-                );
-            case "cupom":
-                return < CuponsAdmin />;
-            case "indicacoes":
-                return <IndicacoesAdmin />
-            case "config":
-                return <ConfigAdmin />;
+    adminMockService.getAdminSnapshot().then((data) => {
+      if (!mounted) return;
+      setSnapshot(data);
+      setLoading(false);
+    });
 
-
-        }
+    return () => {
+      mounted = false;
     };
+  }, []);
 
+  const refreshAfterAction = useCallback(async () => {
+    const data = await adminMockService.getAdminSnapshot();
+    setSnapshot(data);
+  }, []);
+
+  const actions = useMemo(
+    () => ({
+      updateAffiliate: async (
+        id: string,
+        payload: Partial<Pick<Affiliate, "name" | "email" | "phone" | "status" | "city" | "state">>
+      ) => {
+        await adminMockService.updateAffiliate(id, payload);
+        await refreshAfterAction();
+      },
+      toggleAffiliate: async (id: string) => {
+        await adminMockService.toggleAffiliateStatus(id);
+        await refreshAfterAction();
+      },
+      approveCommission: async (id: string) => {
+        await adminMockService.approveCommission(id);
+        await refreshAfterAction();
+      },
+      payCommission: async (id: string) => {
+        await adminMockService.markCommissionAsPaid(id);
+        await refreshAfterAction();
+      },
+      updateLead: async (
+        id: string,
+        payload: Partial<Pick<Lead, "status" | "notes" | "potentialValue">>
+      ) => {
+        await adminMockService.updateLead(id, payload);
+        await refreshAfterAction();
+      },
+      createCampaign: async (payload: Omit<Campaign, "id" | "createdAt">) => {
+        await adminMockService.createCampaign(payload);
+        await refreshAfterAction();
+      },
+      updateCampaign: async (
+        id: string,
+        payload: Partial<Omit<Campaign, "id" | "createdAt">>
+      ) => {
+        await adminMockService.updateCampaign(id, payload);
+        await refreshAfterAction();
+      },
+      createMaterial: async (payload: Omit<CampaignMaterial, "id" | "createdAt">) => {
+        await adminMockService.createCampaignMaterial(payload);
+        await refreshAfterAction();
+      },
+      toggleMaterialPublish: async (id: string) => {
+        await adminMockService.toggleCampaignMaterialPublish(id);
+        await refreshAfterAction();
+      },
+      createCoupon: async (payload: Omit<CouponLink, "id" | "createdAt">) => {
+        await adminMockService.createCoupon(payload);
+        await refreshAfterAction();
+      },
+      updateCoupon: async (
+        id: string,
+        payload: Partial<Omit<CouponLink, "id" | "createdAt">>
+      ) => {
+        await adminMockService.updateCoupon(id, payload);
+        await refreshAfterAction();
+      },
+      toggleCouponStatus: async (id: string) => {
+        await adminMockService.toggleCouponStatus(id);
+        await refreshAfterAction();
+      },
+      updateSettings: async (payload: Partial<PlatformSettings>) => {
+        await adminMockService.updateSettings(payload);
+        await refreshAfterAction();
+      },
+    }),
+    [refreshAfterAction]
+  );
+
+  if (!hasAdminAccess) {
     return (
-        <div className="min-h-screen  flex bg-Darkgray">
-            <Sidebar
-                active={activeSection}
-                onChange={(id) => setActiveSection(id as SectionId)}
-            />
-
-            <main className="flex-1 lg:p-6">{renderSection()}</main>
-        </div>
+      <div className="min-h-screen bg-Darkgray px-4 py-8 text-white">
+        Acesso admin nao autorizado.
+      </div>
     );
+  }
+
+  return (
+    <div className="flex min-h-screen bg-Darkgray">
+      <AdminSidebar active={activeSection} onChange={setActiveSection} />
+
+      <main className="flex-1 px-4 py-6 pb-24 lg:p-6">
+        <AdminHeader section={activeSection} />
+
+        {loading || !snapshot ? (
+          <LoadingCards />
+        ) : (
+          <>
+            {activeSection === "dashboard" ? (
+              <AdminDashboardModule
+                metrics={snapshot.metrics}
+                ranking={snapshot.ranking}
+                commissions={snapshot.commissions}
+                leads={snapshot.leads}
+              />
+            ) : null}
+
+            {activeSection === "affiliates" ? (
+              <AffiliatesModule
+                affiliates={snapshot.affiliates}
+                onUpdateAffiliate={actions.updateAffiliate}
+                onToggleAffiliateStatus={actions.toggleAffiliate}
+              />
+            ) : null}
+
+            {activeSection === "commissions" ? (
+              <CommissionsModule
+                commissions={snapshot.commissions}
+                affiliates={snapshot.affiliates}
+                onApproveCommission={actions.approveCommission}
+                onMarkCommissionAsPaid={actions.payCommission}
+              />
+            ) : null}
+
+            {activeSection === "leads" ? (
+              <LeadsModule
+                leads={snapshot.leads}
+                affiliates={snapshot.affiliates}
+                onUpdateLead={actions.updateLead}
+              />
+            ) : null}
+
+            {activeSection === "campaigns" ? (
+              <CampaignsModule
+                campaigns={snapshot.campaigns}
+                materials={snapshot.materials}
+                onCreateCampaign={actions.createCampaign}
+                onUpdateCampaign={actions.updateCampaign}
+                onCreateMaterial={actions.createMaterial}
+                onToggleMaterialPublish={actions.toggleMaterialPublish}
+              />
+            ) : null}
+
+            {activeSection === "coupons" ? (
+              <CouponsModule
+                coupons={snapshot.coupons}
+                affiliates={snapshot.affiliates}
+                onCreateCoupon={actions.createCoupon}
+                onUpdateCoupon={actions.updateCoupon}
+                onToggleCouponStatus={actions.toggleCouponStatus}
+              />
+            ) : null}
+
+            {activeSection === "settings" ? (
+              <SettingsModule
+                settings={snapshot.settings}
+                onUpdateSettings={actions.updateSettings}
+              />
+            ) : null}
+
+            {activeSection === "reports" ? (
+              <ReportsModule
+                ranking={snapshot.ranking}
+                commissions={snapshot.commissions}
+                leads={snapshot.leads}
+              />
+            ) : null}
+          </>
+        )}
+      </main>
+    </div>
+  );
 }

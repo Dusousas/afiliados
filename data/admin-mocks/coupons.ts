@@ -1,0 +1,47 @@
+﻿import { CouponLink } from "@/types/admin";
+
+export const adminCouponLinksMock: CouponLink[] = [
+  {
+    id: "CO001",
+    code: "YOUON10",
+    link: "https://youon.mock/afiliado/YOUON10",
+    status: "active",
+    affiliateId: "A001",
+    affiliateName: "Mariana Alves",
+    discountPercent: 10,
+    commissionPercent: 20,
+    createdAt: "2025-12-20",
+  },
+  {
+    id: "CO002",
+    code: "LIMA15",
+    link: "https://youon.mock/afiliado/LIMA15",
+    status: "active",
+    affiliateId: "A002",
+    affiliateName: "Carlos Lima",
+    discountPercent: 15,
+    commissionPercent: 22,
+    createdAt: "2026-01-14",
+  },
+  {
+    id: "CO003",
+    code: "ANASOUZA12",
+    link: "https://youon.mock/afiliado/ANASOUZA12",
+    status: "inactive",
+    affiliateId: "A003",
+    affiliateName: "Ana Souza",
+    discountPercent: 12,
+    commissionPercent: 21,
+    createdAt: "2026-01-20",
+  },
+  {
+    id: "CO004",
+    code: "OPEN20",
+    link: "https://youon.mock/afiliado/OPEN20",
+    status: "active",
+    discountPercent: 20,
+    commissionPercent: 18,
+    createdAt: "2026-02-10",
+    expiresAt: "2026-03-31",
+  },
+];
