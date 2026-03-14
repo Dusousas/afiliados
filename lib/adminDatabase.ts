@@ -1,6 +1,6 @@
 ﻿import "server-only";
 
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   adminAffiliatesMock,
   adminCampaignMaterialsMock,
@@ -51,7 +51,7 @@ function parseJson<T>(value: unknown, fallback: T): T {
 }
 
 async function bootstrapDatabase() {
-  const client = await db.connect();
+  const client = await getDb().connect();
 
   try {
     await client.query("BEGIN");
@@ -331,7 +331,7 @@ export async function ensureAdminDatabaseReady() {
 }
 
 async function queryAffiliatesWithStats() {
-  const result = await db.query(
+  const result = await getDb().query(
     `
       SELECT
         a.id,
@@ -383,7 +383,7 @@ async function queryAffiliatesWithStats() {
 }
 
 async function queryLeads() {
-  const result = await db.query(
+  const result = await getDb().query(
     `
       SELECT
         l.id,
@@ -417,7 +417,7 @@ async function queryLeads() {
 }
 
 async function queryCommissions() {
-  const result = await db.query(
+  const result = await getDb().query(
     `
       SELECT
         c.id,
@@ -453,7 +453,7 @@ async function queryCommissions() {
 }
 
 async function queryCampaigns() {
-  const result = await db.query("SELECT * FROM campaigns ORDER BY created_at DESC, id DESC");
+  const result = await getDb().query("SELECT * FROM campaigns ORDER BY created_at DESC, id DESC");
 
   return result.rows.map((row) => ({
     id: String(row.id),
@@ -467,7 +467,7 @@ async function queryCampaigns() {
 }
 
 async function queryCampaignMaterials() {
-  const result = await db.query(
+  const result = await getDb().query(
     "SELECT * FROM campaign_materials ORDER BY created_at DESC, id DESC"
   );
 
@@ -485,7 +485,7 @@ async function queryCampaignMaterials() {
 }
 
 async function queryCoupons() {
-  const result = await db.query(
+  const result = await getDb().query(
     `
       SELECT
         c.id,
@@ -519,7 +519,7 @@ async function queryCoupons() {
 }
 
 async function querySettings() {
-  const result = await db.query("SELECT * FROM settings WHERE id = 1 LIMIT 1");
+  const result = await getDb().query("SELECT * FROM settings WHERE id = 1 LIMIT 1");
   const row = result.rows[0];
 
   if (!row) {
@@ -613,7 +613,7 @@ export async function updateAffiliateInDb(
 ) {
   await ensureAdminDatabaseReady();
 
-  const result = await db.query(
+  const result = await getDb().query(
     `
       UPDATE affiliates
       SET
@@ -643,7 +643,7 @@ export async function updateAffiliateInDb(
 export async function toggleAffiliateStatusInDb(id: string) {
   await ensureAdminDatabaseReady();
 
-  const result = await db.query(
+  const result = await getDb().query(
     `
       UPDATE affiliates
       SET status = CASE WHEN status = 'blocked' THEN 'active' ELSE 'blocked' END
@@ -659,7 +659,7 @@ export async function toggleAffiliateStatusInDb(id: string) {
 export async function approveCommissionInDb(id: string) {
   await ensureAdminDatabaseReady();
 
-  const result = await db.query(
+  const result = await getDb().query(
     `
       UPDATE commissions
       SET status = 'approved', approved_at = $2
@@ -675,7 +675,7 @@ export async function approveCommissionInDb(id: string) {
 export async function markCommissionAsPaidInDb(id: string) {
   await ensureAdminDatabaseReady();
 
-  const result = await db.query(
+  const result = await getDb().query(
     `
       UPDATE commissions
       SET status = 'paid', paid_at = $2
@@ -694,7 +694,7 @@ export async function updateLeadInDb(
 ) {
   await ensureAdminDatabaseReady();
 
-  const result = await db.query(
+  const result = await getDb().query(
     `
       UPDATE leads
       SET
@@ -720,7 +720,7 @@ export async function createLeadInDb(payload: {
 }) {
   await ensureAdminDatabaseReady();
 
-  const affiliateResult = await db.query("SELECT id, name FROM affiliates WHERE id = $1", [
+  const affiliateResult = await getDb().query("SELECT id, name FROM affiliates WHERE id = $1", [
     payload.affiliateId,
   ]);
 
@@ -730,7 +730,7 @@ export async function createLeadInDb(payload: {
 
   const id = uid("L");
 
-  await db.query(
+  await getDb().query(
     `
       INSERT INTO leads (
         id,
@@ -764,7 +764,7 @@ export async function createCampaignInDb(payload: Omit<Campaign, "id" | "created
 
   const id = uid("CP");
 
-  await db.query(
+  await getDb().query(
     `
       INSERT INTO campaigns (id, name, description, status, start_date, end_date, created_at)
       VALUES ($1,$2,$3,$4,$5,$6,$7);
@@ -781,7 +781,7 @@ export async function updateCampaignInDb(
 ) {
   await ensureAdminDatabaseReady();
 
-  const result = await db.query(
+  const result = await getDb().query(
     `
       UPDATE campaigns
       SET
@@ -811,7 +811,7 @@ export async function createMaterialInDb(payload: Omit<CampaignMaterial, "id" | 
 
   const id = uid("MAT");
 
-  await db.query(
+  await getDb().query(
     `
       INSERT INTO campaign_materials (
         id, campaign_id, title, type, description, url, file_name, is_published, created_at
@@ -836,7 +836,7 @@ export async function createMaterialInDb(payload: Omit<CampaignMaterial, "id" | 
 export async function toggleMaterialPublishInDb(id: string) {
   await ensureAdminDatabaseReady();
 
-  const result = await db.query(
+  const result = await getDb().query(
     `
       UPDATE campaign_materials
       SET is_published = NOT is_published
@@ -854,7 +854,7 @@ export async function createCouponInDb(payload: Omit<CouponLink, "id" | "created
 
   const id = uid("CO");
 
-  await db.query(
+  await getDb().query(
     `
       INSERT INTO coupons (
         id,
@@ -890,7 +890,7 @@ export async function updateCouponInDb(
 ) {
   await ensureAdminDatabaseReady();
 
-  const result = await db.query(
+  const result = await getDb().query(
     `
       UPDATE coupons
       SET
@@ -922,7 +922,7 @@ export async function updateCouponInDb(
 export async function toggleCouponStatusInDb(id: string) {
   await ensureAdminDatabaseReady();
 
-  const result = await db.query(
+  const result = await getDb().query(
     `
       UPDATE coupons
       SET status = CASE WHEN status = 'active' THEN 'inactive' ELSE 'active' END
@@ -952,7 +952,7 @@ export async function updateSettingsInDb(payload: Partial<PlatformSettings>) {
     },
   };
 
-  await db.query(
+  await getDb().query(
     `
       UPDATE settings
       SET

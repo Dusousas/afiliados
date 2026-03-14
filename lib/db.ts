@@ -20,8 +20,14 @@ function createPool() {
   });
 }
 
-export const db = global.__afiliadosPgPool ?? createPool();
+function getOrCreatePool() {
+  if (!global.__afiliadosPgPool) {
+    global.__afiliadosPgPool = createPool();
+  }
 
-if (process.env.NODE_ENV !== "production") {
-  global.__afiliadosPgPool = db;
+  return global.__afiliadosPgPool;
+}
+
+export function getDb() {
+  return getOrCreatePool();
 }
