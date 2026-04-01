@@ -10,8 +10,7 @@ import {
   FiInfo,
 } from "react-icons/fi";
 import { HiOutlineGift } from "react-icons/hi";
-import { adminMockService } from "@/services/admin/adminMockService";
-import { MOCK_AFFILIATE_ID } from "../constants";
+import { affiliateDashboardClient } from "@/services/clientApi";
 
 const guarantees = [
   {
@@ -49,13 +48,13 @@ const steps = [
 export default function Cupon() {
   const [loading, setLoading] = useState(true);
   const [coupons, setCoupons] = useState<
-    Awaited<ReturnType<typeof adminMockService.getAffiliateDashboardData>>["coupons"]
+    Awaited<ReturnType<typeof affiliateDashboardClient.getMyDashboard>>["coupons"]
   >([]);
 
   useEffect(() => {
     let mounted = true;
 
-    adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID).then((snapshot) => {
+    affiliateDashboardClient.getMyDashboard().then((snapshot) => {
       if (!mounted) return;
       setCoupons(snapshot.coupons);
       setLoading(false);
@@ -104,8 +103,8 @@ export default function Cupon() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Meu Cupom</h1>
           <p className="text-slate-400 max-w-2xl">
-            Cupom conectado ao painel Admin (mock). Quando o Admin alterar cupons,
-            ativacao ou comissao, os dados aparecem aqui.
+            Seu cupom fica sincronizado com o painel admin e com o banco.
+            Alteracoes de status, desconto e comissao aparecem aqui.
           </p>
         </div>
 

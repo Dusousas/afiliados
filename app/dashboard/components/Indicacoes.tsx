@@ -10,9 +10,8 @@ import {
   FiEdit2,
   FiDollarSign,
 } from "react-icons/fi";
-import { adminMockService } from "@/services/admin/adminMockService";
+import { affiliateDashboardClient } from "@/services/clientApi";
 import { Lead } from "@/types/admin";
-import { MOCK_AFFILIATE_ID } from "../constants";
 
 type DashboardLeadStatus = "Prospect" | "Contato" | "Fechado" | "Perdido";
 
@@ -44,7 +43,7 @@ export default function Indicacoes() {
   React.useEffect(() => {
     let mounted = true;
 
-    adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID).then((snapshot) => {
+    affiliateDashboardClient.getMyDashboard().then((snapshot) => {
       if (!mounted) return;
       setLeads(snapshot.leads);
       setLoading(false);
@@ -78,15 +77,14 @@ export default function Indicacoes() {
     if (!novoLead.nome.trim()) return;
 
     setSavingLead(true);
-    await adminMockService.createLead({
-      affiliateId: MOCK_AFFILIATE_ID,
+    await affiliateDashboardClient.createLead({
       name: novoLead.nome.trim(),
       origin: novoLead.origem.trim() || "Manual",
       potentialValue: parseFloat(novoLead.valor) || 0,
       notes: novoLead.nota.trim(),
     });
 
-    const snapshot = await adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID);
+    const snapshot = await affiliateDashboardClient.getMyDashboard();
     setLeads(snapshot.leads);
     setNovoLead({ nome: "", origem: "", valor: "", nota: "" });
     setSavingLead(false);
@@ -102,8 +100,8 @@ export default function Indicacoes() {
             ? "won"
             : lead.status;
 
-    await adminMockService.updateLead(lead.id, { status: nextStatus });
-    const snapshot = await adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID);
+    await affiliateDashboardClient.updateLead(lead.id, { status: nextStatus });
+    const snapshot = await affiliateDashboardClient.getMyDashboard();
     setLeads(snapshot.leads);
   };
 
@@ -113,8 +111,8 @@ export default function Indicacoes() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Minhas indicacoes</h1>
           <p className="text-slate-400 max-w-2xl">
-            Integrado ao Admin (modo mock): os leads que voce cadastra aqui
-            aparecem na gestao de leads do painel administrativo.
+            Os leads que voce cadastra aqui entram direto no banco e passam a
+            aparecer para o admin acompanhar e avançar.
           </p>
         </div>
 

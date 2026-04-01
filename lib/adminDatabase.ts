@@ -711,6 +711,30 @@ export async function updateLeadInDb(
   return result.rows[0] ? true : false;
 }
 
+export async function updateAffiliateLeadInDb(
+  affiliateId: string,
+  id: string,
+  payload: Partial<Pick<Lead, "status" | "notes" | "potentialValue">>
+) {
+  await ensureAdminDatabaseReady();
+
+  const result = await getDb().query(
+    `
+      UPDATE leads
+      SET
+        status = COALESCE($3, status),
+        notes = COALESCE($4, notes),
+        potential_value = COALESCE($5, potential_value),
+        updated_at = $6
+      WHERE id = $1 AND affiliate_id = $2
+      RETURNING id;
+    `,
+    [id, affiliateId, payload.status ?? null, payload.notes ?? null, payload.potentialValue ?? null, nowDate()]
+  );
+
+  return result.rows[0] ? true : false;
+}
+
 export async function createLeadInDb(payload: {
   affiliateId: string;
   name: string;

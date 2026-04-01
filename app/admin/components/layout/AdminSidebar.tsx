@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FiLogOut } from "react-icons/fi";
 import { AdminSectionId, adminNavItems } from "./navigation";
@@ -6,9 +6,26 @@ import { AdminSectionId, adminNavItems } from "./navigation";
 type Props = {
   active: AdminSectionId;
   onChange: (section: AdminSectionId) => void;
+  onLogout?: () => void;
+  userName?: string;
+  userEmail?: string;
 };
 
-export default function AdminSidebar({ active, onChange }: Props) {
+export default function AdminSidebar({
+  active,
+  onChange,
+  onLogout,
+  userName = "Admin Master",
+  userEmail = "admin@youon.com",
+}: Props) {
+  const initials =
+    userName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "AD";
+
   return (
     <>
       <aside className="hidden w-80 flex-col border-r border-slate-800 bg-slate-900 pt-6 text-slate-100 lg:flex">
@@ -21,11 +38,11 @@ export default function AdminSidebar({ active, onChange }: Props) {
 
         <div className="flex items-center gap-3 border-b border-slate-800 px-6 py-4">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-700 text-sm font-semibold">
-            AD
+            {initials}
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium uppercase">Admin Master</span>
-            <span className="text-xs text-slate-400">admin@youon.com</span>
+            <span className="text-sm font-medium uppercase">{userName}</span>
+            <span className="text-xs text-slate-400">{userEmail}</span>
           </div>
         </div>
 
@@ -52,7 +69,10 @@ export default function AdminSidebar({ active, onChange }: Props) {
         </nav>
 
         <div className="border-t border-slate-800 px-3 pb-4 pt-2">
-          <button className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300">
+          <button
+            onClick={onLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-red-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+          >
             <FiLogOut className="text-lg" />
             Sair
           </button>
@@ -78,6 +98,7 @@ export default function AdminSidebar({ active, onChange }: Props) {
           })}
           <button
             aria-label="Sair"
+            onClick={onLogout}
             className="flex h-12 w-12 flex-none items-center justify-center rounded-full text-red-400"
           >
             <FiLogOut className="text-xl" />

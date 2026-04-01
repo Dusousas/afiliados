@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminUser } from "@/lib/auth";
-import { updateLeadInDb } from "@/lib/adminDatabase";
+import { AuthError, requireAffiliateUser } from "@/lib/auth";
+import { updateAffiliateLeadInDb } from "@/lib/adminDatabase";
 
 export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    await requireAdminUser();
+    const user = await requireAffiliateUser();
     const { id } = await context.params;
     const body = await request.json();
 
-    const ok = await updateLeadInDb(id, {
+    const ok = await updateAffiliateLeadInDb(user.affiliateId, id, {
       status: body.status,
       notes: body.notes,
       potentialValue: body.potentialValue,
@@ -27,9 +27,6 @@ export async function PATCH(
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    return NextResponse.json(
-      { message: "Erro ao atualizar lead.", details: String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Nao foi possivel atualizar o lead." }, { status: 500 });
   }
 }

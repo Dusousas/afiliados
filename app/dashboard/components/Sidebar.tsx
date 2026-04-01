@@ -15,8 +15,10 @@ import {
 type SidebarProps = {
   className?: string;
   onLogout?: () => void;
-  active: string; // seção ativa
-  onChange: (id: string) => void; // troca de seção
+  active: string;
+  onChange: (id: string) => void;
+  userName?: string;
+  userEmail?: string;
 };
 
 type NavItem = {
@@ -28,11 +30,11 @@ type NavItem = {
 const navItems: NavItem[] = [
   { label: "Dashboard", id: "dashboard", icon: FiHome },
   { label: "Meu Cupom", id: "cupom", icon: FiTag },
-  { label: "Minhas Indicações", id: "indicacoes", icon: FiUserPlus },
+  { label: "Minhas Indicacoes", id: "indicacoes", icon: FiUserPlus },
   { label: "Materiais Youon", id: "materiais", icon: FiBookOpen },
-  { label: "Prêmios", id: "premios", icon: FiStar },
-  { label: "Configurações", id: "config", icon: FiSettings },
-  { label: "Notificações", id: "notificacoes", icon: FiInbox },
+  { label: "Premios", id: "premios", icon: FiStar },
+  { label: "Configuracoes", id: "config", icon: FiSettings },
+  { label: "Notificacoes", id: "notificacoes", icon: FiInbox },
 ];
 
 export default function Sidebar({
@@ -40,19 +42,25 @@ export default function Sidebar({
   onLogout,
   active,
   onChange,
+  userName = "Seu nome",
+  userEmail = "seuemail@gmail.com",
 }: SidebarProps) {
+  const initials =
+    userName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "AF";
+
   const handleLogout = () => {
     if (onLogout) {
       onLogout();
-    } else {
-      console.log("Logout clicado");
-      // depois você coloca a lógica real de logout
     }
   };
 
   return (
     <>
-      {/* SIDEBAR DESKTOP */}
       <aside
         className={`
           hidden lg:flex
@@ -61,30 +69,23 @@ export default function Sidebar({
           ${className}
         `}
       >
-        {/* Topo: logo / nome do painel */}
         <div className="h-16 flex items-center px-6 border-b border-slate-800">
           <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-BlueP">
-              YOU ON
-            </p>
-            <p className="text-sm font-semibold uppercase">
-              Painel do Afiliado
-            </p>
+            <p className="text-xs uppercase tracking-[0.2em] text-BlueP">YOU ON</p>
+            <p className="text-sm font-semibold uppercase">Painel do Afiliado</p>
           </div>
         </div>
 
-        {/* Área do usuário */}
         <div className="px-6 py-4 border-b border-slate-800 flex items-center gap-3">
           <div className="h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center text-sm font-semibold">
-            SN
+            {initials}
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium uppercase">Seu nome</span>
-            <span className="text-xs text-slate-400">seuemail@gmail.com</span>
+            <span className="text-sm font-medium uppercase">{userName}</span>
+            <span className="text-xs text-slate-400">{userEmail}</span>
           </div>
         </div>
 
-        {/* Navegação */}
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {navItems.map(({ id, label, icon: Icon }) => {
             const isActive = active === id;
@@ -110,7 +111,6 @@ export default function Sidebar({
           })}
         </nav>
 
-        {/* Botão de sair */}
         <div className="px-3 pb-4 pt-2 border-t border-slate-800">
           <button
             onClick={handleLogout}
@@ -126,7 +126,6 @@ export default function Sidebar({
         </div>
       </aside>
 
-      {/* MENU INFERIOR MOBILE: APENAS ÍCONES, SCROLL SÓ NA BARRA */}
       <nav
         className="
           lg:hidden
@@ -158,11 +157,7 @@ export default function Sidebar({
                   w-12 h-12
                   rounded-full
                   flex items-center justify-center
-                  ${
-                    isActive
-                      ? "text-sky-400 bg-slate-800"
-                      : "text-slate-300"
-                  }
+                  ${isActive ? "text-sky-400 bg-slate-800" : "text-slate-300"}
                 `}
               >
                 <Icon className="text-xl" />
@@ -170,7 +165,6 @@ export default function Sidebar({
             );
           })}
 
-          {/* Logout como ícone na barra */}
           <button
             onClick={handleLogout}
             aria-label="Sair"

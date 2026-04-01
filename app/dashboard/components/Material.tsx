@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { FiCopy, FiDownload, FiLink, FiPlay } from "react-icons/fi";
 import { HiOutlineSparkles } from "react-icons/hi";
-import { adminMockService } from "@/services/admin/adminMockService";
-import { MOCK_AFFILIATE_ID } from "../constants";
+import { affiliateDashboardClient } from "@/services/clientApi";
 
 const typeLabel: Record<string, string> = {
   banner: "Banner",
@@ -17,13 +16,13 @@ const typeLabel: Record<string, string> = {
 export default function Material() {
   const [loading, setLoading] = useState(true);
   const [snapshot, setSnapshot] = useState<Awaited<
-    ReturnType<typeof adminMockService.getAffiliateDashboardData>
+    ReturnType<typeof affiliateDashboardClient.getMyDashboard>
   > | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID).then((data) => {
+    affiliateDashboardClient.getMyDashboard().then((data) => {
       if (!mounted) return;
       setSnapshot(data);
       setLoading(false);
@@ -50,7 +49,7 @@ export default function Material() {
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-white mb-2">Materiais You On</h1>
           <p className="text-slate-400 max-w-2xl">
-            Materiais sincronizados com o Admin (mock). Tudo que for publicado
+            Materiais sincronizados com o admin em tempo real. Tudo que for publicado
             no painel administrativo aparece aqui para o afiliado.
           </p>
         </div>

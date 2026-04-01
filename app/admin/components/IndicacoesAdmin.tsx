@@ -217,10 +217,7 @@ export default function IndicacoesAdmin() {
     return leads.find((l) => l.id === selectedLeadId) ?? null;
   }, [leads, selectedLeadId]);
 
-  const selectedAffiliate = useMemo(() => {
-    if (!selectedLead) return null;
-    return getAffiliate(selectedLead.affiliateId) ?? null;
-  }, [selectedLead]);
+  const selectedAffiliate = selectedLead ? getAffiliate(selectedLead.affiliateId) ?? null : null;
 
   // form dentro do modal (valor do lead + admin note + status)
   const [modalForm, setModalForm] = useState({

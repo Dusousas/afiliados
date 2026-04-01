@@ -61,7 +61,7 @@ export default function Navbar(): JSX.Element {
     const handleScroll = () => {
       const scrollY = window.scrollY + window.innerHeight / 2;
 
-      for (let section of sections) {
+      for (const section of sections) {
         const el = document.getElementById(section);
         if (el) {
           const top = el.offsetTop;

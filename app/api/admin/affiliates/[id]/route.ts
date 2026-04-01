@@ -1,4 +1,5 @@
-﻿import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { AuthError, requireAdminUser } from "@/lib/auth";
 import { updateAffiliateInDb } from "@/lib/adminDatabase";
 
 export async function PATCH(
@@ -6,6 +7,7 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
+    await requireAdminUser();
     const { id } = await context.params;
     const body = await request.json();
 
@@ -17,6 +19,10 @@ export async function PATCH(
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ message: error.message }, { status: error.status });
+    }
+
     return NextResponse.json(
       { message: "Erro ao atualizar afiliado.", details: String(error) },
       { status: 500 }

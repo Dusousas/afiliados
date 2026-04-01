@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, requireAdminUser } from "@/lib/auth";
+import { AuthError, requireAffiliateUser } from "@/lib/auth";
 import { createLeadInDb } from "@/lib/adminDatabase";
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdminUser();
+    const user = await requireAffiliateUser();
     const body = await request.json();
 
     const id = await createLeadInDb({
-      affiliateId: body.affiliateId,
+      affiliateId: user.affiliateId,
       name: body.name,
       origin: body.origin,
       potentialValue: Number(body.potentialValue ?? 0),
@@ -25,9 +25,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: error.message }, { status: error.status });
     }
 
-    return NextResponse.json(
-      { message: "Erro ao criar lead.", details: String(error) },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Nao foi possivel criar o lead." }, { status: 500 });
   }
 }

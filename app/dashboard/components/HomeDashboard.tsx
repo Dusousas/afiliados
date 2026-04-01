@@ -12,20 +12,19 @@ import {
 } from "react-icons/fi";
 import { HiOutlineChartBar } from "react-icons/hi";
 import { AiOutlineLineChart } from "react-icons/ai";
-import { adminMockService } from "@/services/admin/adminMockService";
-import { MOCK_AFFILIATE_ID } from "../constants";
+import { affiliateDashboardClient } from "@/services/clientApi";
 
 export default function HomeDashboard() {
   const [period, setPeriod] = useState<"7d" | "30d" | "90d" | "all">("30d");
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<Awaited<
-    ReturnType<typeof adminMockService.getAffiliateDashboardData>
+    ReturnType<typeof affiliateDashboardClient.getMyDashboard>
   > | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    adminMockService.getAffiliateDashboardData(MOCK_AFFILIATE_ID).then((snapshot) => {
+    affiliateDashboardClient.getMyDashboard().then((snapshot) => {
       if (!mounted) return;
       setData(snapshot);
       setLoading(false);
@@ -142,8 +141,8 @@ export default function HomeDashboard() {
         <div className="mb-8">
           <h1 className="mb-2 text-4xl font-bold text-white">Dashboard do Afiliado</h1>
           <p className="text-slate-400">
-            Visao conectada ao Admin (modo mock). Tudo que for alterado no painel
-            administrativo pode refletir aqui.
+            Visao conectada ao banco em tempo real. Tudo que o admin ajustar
+            no programa aparece refletido aqui.
           </p>
         </div>
 
