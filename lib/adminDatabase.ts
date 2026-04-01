@@ -339,6 +339,9 @@ async function queryAffiliatesWithStats() {
         a.email,
         a.phone,
         a.status,
+        u.username,
+        (u.id IS NOT NULL) AS has_account,
+        COALESCE(u.is_active, FALSE) AS account_active,
         a.joined_at,
         a.last_active_at,
         a.city,
@@ -362,6 +365,7 @@ async function queryAffiliatesWithStats() {
         FROM commissions
         GROUP BY affiliate_id
       ) c ON c.affiliate_id = a.id
+      LEFT JOIN users u ON u.affiliate_id = a.id
       ORDER BY a.name;
     `
   );
@@ -372,6 +376,9 @@ async function queryAffiliatesWithStats() {
     email: String(row.email),
     phone: String(row.phone),
     status: row.status as AffiliateStatus,
+    username: row.username ? String(row.username) : undefined,
+    hasAccount: Boolean(row.has_account),
+    accountActive: Boolean(row.account_active),
     joinedAt: toDateString(row.joined_at),
     lastActiveAt: toDateString(row.last_active_at),
     city: String(row.city),
@@ -613,47 +620,116 @@ export async function updateAffiliateInDb(
 ) {
   await ensureAdminDatabaseReady();
 
-  const result = await getDb().query(
-    `
-      UPDATE affiliates
-      SET
-        name = COALESCE($2, name),
-        email = COALESCE($3, email),
-        phone = COALESCE($4, phone),
-        status = COALESCE($5, status),
-        city = COALESCE($6, city),
-        state = COALESCE($7, state)
-      WHERE id = $1
-      RETURNING id;
-    `,
-    [
-      id,
-      payload.name ?? null,
-      payload.email ?? null,
-      payload.phone ?? null,
-      payload.status ?? null,
-      payload.city ?? null,
-      payload.state ?? null,
-    ]
-  );
+  const client = await getDb().connect();
 
-  return result.rows[0] ? true : false;
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `
+        UPDATE affiliates
+        SET
+          name = COALESCE($2, name),
+          email = COALESCE($3, email),
+          phone = COALESCE($4, phone),
+          status = COALESCE($5, status),
+          city = COALESCE($6, city),
+          state = COALESCE($7, state)
+        WHERE id = $1
+        RETURNING id, name, email, phone, status;
+      `,
+      [
+        id,
+        payload.name ?? null,
+        payload.email ?? null,
+        payload.phone ?? null,
+        payload.status ?? null,
+        payload.city ?? null,
+        payload.state ?? null,
+      ]
+    );
+
+    const affiliate = result.rows[0];
+
+    if (!affiliate) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+
+    await client.query(
+      `
+        UPDATE users
+        SET
+          name = $2,
+          email = $3,
+          phone = $4,
+          is_active = CASE
+            WHEN $5 = 'blocked' THEN FALSE
+            ELSE TRUE
+          END,
+          updated_at = NOW()
+        WHERE affiliate_id = $1;
+      `,
+      [id, affiliate.name, affiliate.email, affiliate.phone, affiliate.status]
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function toggleAffiliateStatusInDb(id: string) {
   await ensureAdminDatabaseReady();
 
-  const result = await getDb().query(
-    `
-      UPDATE affiliates
-      SET status = CASE WHEN status = 'blocked' THEN 'active' ELSE 'blocked' END
-      WHERE id = $1
-      RETURNING id;
-    `,
-    [id]
-  );
+  const client = await getDb().connect();
 
-  return result.rows[0] ? true : false;
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `
+        UPDATE affiliates
+        SET status = CASE WHEN status = 'blocked' THEN 'active' ELSE 'blocked' END
+        WHERE id = $1
+        RETURNING id, status;
+      `,
+      [id]
+    );
+
+    const affiliate = result.rows[0];
+
+    if (!affiliate) {
+      await client.query("ROLLBACK");
+      return false;
+    }
+
+    await client.query(
+      `
+        UPDATE users
+        SET
+          is_active = CASE
+            WHEN $2 = 'blocked' THEN FALSE
+            ELSE TRUE
+          END,
+          updated_at = NOW()
+        WHERE affiliate_id = $1;
+      `,
+      [id, affiliate.status]
+    );
+
+    await client.query("COMMIT");
+    return true;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function approveCommissionInDb(id: string) {

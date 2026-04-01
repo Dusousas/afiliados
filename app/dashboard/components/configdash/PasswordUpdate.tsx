@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { FiCheckCircle, FiKey, FiLock } from "react-icons/fi";
+import { authClient } from "@/services/clientApi";
 
 type PasswordForm = {
   current: string;
@@ -21,8 +22,9 @@ export default function PasswordUpdate() {
     next: "",
     confirm: "",
   });
-
+  const [loading, setLoading] = useState(false);
   const [updated, setUpdated] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange =
     (field: keyof PasswordForm) =>
@@ -30,22 +32,38 @@ export default function PasswordUpdate() {
       setForm((prev) => ({ ...prev, [field]: event.target.value }));
     };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setUpdated(true);
-    setTimeout(() => setUpdated(false), 1800);
+    setError("");
+
+    if (form.next !== form.confirm) {
+      setError("A confirmacao da senha nao confere.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await authClient.updatePassword({
+        currentPassword: form.current,
+        newPassword: form.next,
+      });
+      setUpdated(true);
+      setForm({ current: "", next: "", confirm: "" });
+      setTimeout(() => setUpdated(false), 1800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel atualizar a senha.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-6 shadow-xl backdrop-blur h-full">
       <div className="flex items-start justify-between gap-4 mb-5">
         <div>
-          <p className="text-xs uppercase tracking-[0.25em] text-blue-400">
-            Acesso seguro
-          </p>
-          <h3 className="text-2xl font-semibold text-white mt-1">
-            Trocar senha
-          </h3>
+          <p className="text-xs uppercase tracking-[0.25em] text-blue-400">Acesso seguro</p>
+          <h3 className="text-2xl font-semibold text-white mt-1">Trocar senha</h3>
           <p className="text-sm text-slate-400">
             Reforce o acesso da sua conta You On com uma senha forte.
           </p>
@@ -95,13 +113,16 @@ export default function PasswordUpdate() {
           </label>
         </div>
 
+        {error ? <p className="text-sm text-red-300">{error}</p> : null}
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="submit"
-            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-5 py-3 rounded-lg transition-shadow shadow-lg shadow-emerald-900/30"
+            disabled={loading}
+            className="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-5 py-3 rounded-lg transition-shadow shadow-lg shadow-emerald-900/30 disabled:opacity-60"
           >
             <FiKey />
-            {updated ? "Senha atualizada" : "Atualizar senha"}
+            {loading ? "Atualizando..." : updated ? "Senha atualizada" : "Atualizar senha"}
           </button>
           <div className="flex flex-wrap gap-2 text-xs text-slate-400">
             {requirements.map((req) => (

@@ -1,20 +1,65 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FiUser, FiMail, FiPhone, FiSave } from "react-icons/fi";
+import { authClient } from "@/services/clientApi";
 
 export default function AdminProfileDetails() {
   const [form, setForm] = useState({
-    nome: "Admin You On",
-    email: "admin@youon.com",
-    telefone: "(11) 90000-0000",
+    nome: "",
+    email: "",
+    telefone: "",
     cargo: "Admin Master",
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
-  const onSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    let mounted = true;
+
+    authClient
+      .getProfile()
+      .then((profile) => {
+        if (!mounted) return;
+        setForm({
+          nome: profile.name,
+          email: profile.email,
+          telefone: profile.phone,
+          cargo: "Admin Master",
+        });
+        setLoading(false);
+      })
+      .catch((err) => {
+        if (!mounted) return;
+        setError(err instanceof Error ? err.message : "Nao foi possivel carregar o perfil.");
+        setLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const onSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: integrar com API
-    console.log("Salvar perfil admin:", form);
+    setSaving(true);
+    setError("");
+
+    try {
+      await authClient.updateProfile({
+        name: form.nome,
+        email: form.email,
+        phone: form.telefone,
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 1800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel salvar o perfil.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -34,6 +79,7 @@ export default function AdminProfileDetails() {
               onChange={(e) => setForm((p) => ({ ...p, nome: e.target.value }))}
               className="w-full bg-transparent text-white outline-none"
               placeholder="Seu nome"
+              disabled={loading || saving}
             />
           </div>
         </div>
@@ -47,6 +93,7 @@ export default function AdminProfileDetails() {
               onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
               className="w-full bg-transparent text-white outline-none"
               placeholder="email@youon.com"
+              disabled={loading || saving}
             />
           </div>
         </div>
@@ -58,11 +105,10 @@ export default function AdminProfileDetails() {
               <FiPhone className="text-slate-400" />
               <input
                 value={form.telefone}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, telefone: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, telefone: e.target.value }))}
                 className="w-full bg-transparent text-white outline-none"
                 placeholder="(xx) xxxxx-xxxx"
+                disabled={loading || saving}
               />
             </div>
           </div>
@@ -71,19 +117,21 @@ export default function AdminProfileDetails() {
             <label className="text-sm text-slate-400">Cargo</label>
             <input
               value={form.cargo}
-              onChange={(e) => setForm((p) => ({ ...p, cargo: e.target.value }))}
-              className="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white outline-none focus:border-sky-500"
-              placeholder="Admin"
+              readOnly
+              className="w-full mt-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-slate-400 outline-none"
             />
           </div>
         </div>
 
+        {error ? <p className="text-sm text-red-300">{error}</p> : null}
+
         <button
           type="submit"
-          className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold px-5 py-2 rounded-lg transition-colors"
+          disabled={loading || saving}
+          className="inline-flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold px-5 py-2 rounded-lg transition-colors disabled:opacity-60"
         >
           <FiSave className="w-4 h-4" />
-          Salvar perfil
+          {saving ? "Salvando..." : saved ? "Perfil salvo" : "Salvar perfil"}
         </button>
       </form>
     </div>

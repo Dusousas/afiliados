@@ -82,6 +82,19 @@ export const authClient = {
       body: JSON.stringify(payload),
     });
   },
+
+  async updatePassword(payload: { currentPassword: string; newPassword: string }) {
+    return requestJson<{ success: boolean }>("/api/account/password", {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deactivateAccount() {
+    return requestJson<{ success: boolean }>("/api/account/deactivate", {
+      method: "POST",
+    });
+  },
 };
 
 export const affiliateDashboardClient = {

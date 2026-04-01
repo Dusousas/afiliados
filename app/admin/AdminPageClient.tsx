@@ -65,6 +65,18 @@ export default function AdminPageClient({ currentUser }: Props) {
         await adminMockService.updateAffiliate(id, payload);
         await refreshAfterAction();
       },
+      createAffiliate: async (payload: {
+        name: string;
+        email: string;
+        phone: string;
+        password: string;
+        city: string;
+        state: string;
+        status: Affiliate["status"];
+      }) => {
+        await adminMockService.createAffiliate(payload);
+        await refreshAfterAction();
+      },
       toggleAffiliate: async (id: string) => {
         await adminMockService.toggleAffiliateStatus(id);
         await refreshAfterAction();
@@ -155,6 +167,7 @@ export default function AdminPageClient({ currentUser }: Props) {
             {activeSection === "affiliates" ? (
               <AffiliatesModule
                 affiliates={snapshot.affiliates}
+                onCreateAffiliate={actions.createAffiliate}
                 onUpdateAffiliate={actions.updateAffiliate}
                 onToggleAffiliateStatus={actions.toggleAffiliate}
               />

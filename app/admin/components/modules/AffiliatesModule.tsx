@@ -1,13 +1,22 @@
-﻿"use client";
+"use client";
 
 import { ReactNode, useMemo, useState } from "react";
-import { FiEdit2, FiEye, FiSearch, FiShield } from "react-icons/fi";
+import { FiEdit2, FiEye, FiPlus, FiSearch, FiShield } from "react-icons/fi";
 import { Affiliate, AffiliateStatus } from "@/types/admin";
 import { EmptyState, SectionTitle, StatusBadge } from "../ui";
 import { calculateConversionRate, formatCurrency, formatDate } from "./formatters";
 
 type Props = {
   affiliates: Affiliate[];
+  onCreateAffiliate: (payload: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    city: string;
+    state: string;
+    status: AffiliateStatus;
+  }) => Promise<void>;
   onUpdateAffiliate: (
     id: string,
     payload: Partial<Pick<Affiliate, "name" | "email" | "phone" | "status" | "city" | "state">>
@@ -15,10 +24,21 @@ type Props = {
   onToggleAffiliateStatus: (id: string) => Promise<void>;
 };
 
-type ModalMode = "view" | "edit";
+type ModalMode = "create" | "view" | "edit";
+
+const emptyForm = {
+  name: "",
+  email: "",
+  phone: "",
+  password: "",
+  status: "active" as AffiliateStatus,
+  city: "",
+  state: "",
+};
 
 export default function AffiliatesModule({
   affiliates,
+  onCreateAffiliate,
   onUpdateAffiliate,
   onToggleAffiliateStatus,
 }: Props) {
@@ -27,14 +47,8 @@ export default function AffiliatesModule({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [mode, setMode] = useState<ModalMode>("view");
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    status: "active" as AffiliateStatus,
-    city: "",
-    state: "",
-  });
+  const [error, setError] = useState("");
+  const [form, setForm] = useState(emptyForm);
 
   const filteredAffiliates = useMemo(() => {
     return affiliates.filter((affiliate) => {
@@ -43,7 +57,8 @@ export default function AffiliatesModule({
         ? true
         : affiliate.name.toLowerCase().includes(searchValue) ||
           affiliate.email.toLowerCase().includes(searchValue) ||
-          affiliate.id.toLowerCase().includes(searchValue);
+          affiliate.id.toLowerCase().includes(searchValue) ||
+          affiliate.username?.toLowerCase().includes(searchValue);
 
       const matchesStatus = statusFilter === "all" ? true : affiliate.status === statusFilter;
       return matchesSearch && matchesStatus;
@@ -55,13 +70,22 @@ export default function AffiliatesModule({
     return affiliates.find((affiliate) => affiliate.id === selectedId) ?? null;
   }, [affiliates, selectedId]);
 
-  const openModal = (affiliate: Affiliate, modalMode: ModalMode) => {
+  const openCreateModal = () => {
+    setSelectedId(null);
+    setMode("create");
+    setError("");
+    setForm(emptyForm);
+  };
+
+  const openModal = (affiliate: Affiliate, modalMode: Exclude<ModalMode, "create">) => {
     setSelectedId(affiliate.id);
     setMode(modalMode);
+    setError("");
     setForm({
       name: affiliate.name,
       email: affiliate.email,
       phone: affiliate.phone,
+      password: "",
       status: affiliate.status,
       city: affiliate.city,
       state: affiliate.state,
@@ -70,21 +94,57 @@ export default function AffiliatesModule({
 
   const closeModal = () => {
     setSelectedId(null);
+    setMode("view");
+    setError("");
+    setForm(emptyForm);
   };
 
   const handleSave = async () => {
-    if (!selectedAffiliate) return;
     setSaving(true);
-    await onUpdateAffiliate(selectedAffiliate.id, form);
-    setSaving(false);
-    closeModal();
+    setError("");
+
+    try {
+      if (mode === "create") {
+        if (!form.name || !form.email || !form.password) {
+          setError("Preencha nome, email e senha inicial.");
+          setSaving(false);
+          return;
+        }
+
+        await onCreateAffiliate(form);
+      } else if (selectedAffiliate) {
+        await onUpdateAffiliate(selectedAffiliate.id, form);
+      }
+
+      closeModal();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel salvar o afiliado.");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const modalTitle =
+    mode === "create"
+      ? "Novo afiliado"
+      : mode === "view"
+        ? "Perfil do afiliado"
+        : "Editar afiliado";
 
   return (
     <section className="space-y-6">
       <SectionTitle
         title="Afiliados"
-        description="Listagem completa com busca, filtros e acoes de perfil"
+        description="Listagem completa com busca, filtros e criacao real de contas."
+        actions={
+          <button
+            onClick={openCreateModal}
+            className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500"
+          >
+            <FiPlus className="h-4 w-4" />
+            Novo afiliado
+          </button>
+        }
       />
 
       <div className="rounded-xl border border-slate-700 bg-slate-800 p-4">
@@ -94,7 +154,7 @@ export default function AffiliatesModule({
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Pesquisar por nome, email ou ID"
+              placeholder="Pesquisar por nome, email, username ou ID"
               className="w-full rounded-lg border border-slate-700 bg-slate-900 py-2 pl-9 pr-3 text-sm text-white outline-none focus:border-sky-500"
             />
           </div>
@@ -119,6 +179,7 @@ export default function AffiliatesModule({
               <thead>
                 <tr className="border-b border-slate-700 text-left text-slate-400">
                   <th className="pb-3 pr-3">Afiliado</th>
+                  <th className="pb-3 pr-3">Conta</th>
                   <th className="pb-3 pr-3">Local</th>
                   <th className="pb-3 pr-3">Status</th>
                   <th className="pb-3 pr-3">Leads</th>
@@ -139,6 +200,12 @@ export default function AffiliatesModule({
                       <td className="py-3 pr-3">
                         <p className="font-semibold text-white">{affiliate.name}</p>
                         <p className="text-xs text-slate-400">{affiliate.email}</p>
+                      </td>
+                      <td className="py-3 pr-3">
+                        <p className="text-slate-200">{affiliate.username ?? "-"}</p>
+                        <p className="text-xs text-slate-400">
+                          {affiliate.hasAccount ? (affiliate.accountActive ? "Conta ativa" : "Conta desativada") : "Sem conta"}
+                        </p>
                       </td>
                       <td className="py-3 pr-3 text-slate-300">
                         {affiliate.city}/{affiliate.state}
@@ -185,16 +252,16 @@ export default function AffiliatesModule({
         )}
       </div>
 
-      {selectedAffiliate ? (
+      {mode === "create" || selectedAffiliate ? (
         <div className="fixed inset-0 z-[999]">
           <button className="absolute inset-0 bg-black/60" onClick={closeModal} aria-label="Fechar" />
           <div className="relative mx-auto mt-16 w-[92%] max-w-3xl rounded-2xl border border-slate-700 bg-slate-900 p-6">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-xl font-bold text-white">
-                  {mode === "view" ? "Perfil do afiliado" : "Editar afiliado"}
-                </h3>
-                <p className="text-sm text-slate-400">ID {selectedAffiliate.id}</p>
+                <h3 className="text-xl font-bold text-white">{modalTitle}</h3>
+                <p className="text-sm text-slate-400">
+                  {mode === "create" ? "Crie afiliado + conta de acesso no banco." : `ID ${selectedAffiliate?.id ?? ""}`}
+                </p>
               </div>
               <button
                 onClick={closeModal}
@@ -204,11 +271,13 @@ export default function AffiliatesModule({
               </button>
             </div>
 
-            {mode === "view" ? (
+            {mode === "view" && selectedAffiliate ? (
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <InfoRow label="Nome" value={selectedAffiliate.name} />
                 <InfoRow label="Email" value={selectedAffiliate.email} />
                 <InfoRow label="Telefone" value={selectedAffiliate.phone} />
+                <InfoRow label="Username" value={selectedAffiliate.username ?? "-"} />
+                <InfoRow label="Conta" value={selectedAffiliate.hasAccount ? (selectedAffiliate.accountActive ? "Ativa" : "Desativada") : "Sem conta"} />
                 <InfoRow label="Status" value={<StatusBadge status={selectedAffiliate.status} />} />
                 <InfoRow label="Cidade" value={`${selectedAffiliate.city}/${selectedAffiliate.state}`} />
                 <InfoRow label="Entrada" value={formatDate(selectedAffiliate.joinedAt)} />
@@ -257,7 +326,17 @@ export default function AffiliatesModule({
                     value={form.state}
                     onChange={(value) => setForm((prev) => ({ ...prev, state: value }))}
                   />
+                  {mode === "create" ? (
+                    <LabeledInput
+                      label="Senha inicial"
+                      type="password"
+                      value={form.password}
+                      onChange={(value) => setForm((prev) => ({ ...prev, password: value }))}
+                    />
+                  ) : null}
                 </div>
+
+                {error ? <p className="text-sm text-red-300">{error}</p> : null}
 
                 <div className="flex justify-end gap-3 pt-2">
                   <button
@@ -271,7 +350,7 @@ export default function AffiliatesModule({
                     disabled={saving}
                     className="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-500 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {saving ? "Salvando..." : "Salvar alteracoes"}
+                    {saving ? "Salvando..." : mode === "create" ? "Criar afiliado" : "Salvar alteracoes"}
                   </button>
                 </div>
               </div>
@@ -296,15 +375,18 @@ function LabeledInput({
   label,
   value,
   onChange,
+  type = "text",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  type?: string;
 }) {
   return (
     <div>
       <label className="text-xs text-slate-400">{label}</label>
       <input
+        type={type}
         value={value}
         onChange={(event) => onChange(event.target.value)}
         className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:border-sky-500"

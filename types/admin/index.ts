@@ -18,6 +18,9 @@ export interface Affiliate {
   email: string;
   phone: string;
   status: AffiliateStatus;
+  username?: string;
+  hasAccount?: boolean;
+  accountActive?: boolean;
   joinedAt: string;
   lastActiveAt: string;
   city: string;

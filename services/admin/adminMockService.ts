@@ -123,6 +123,24 @@ export const adminMockService = {
     return affiliates.find((item) => item.id === id) ?? null;
   },
 
+  async createAffiliate(payload: {
+    name: string;
+    email: string;
+    phone: string;
+    password: string;
+    city: string;
+    state: string;
+    status: AffiliateStatus;
+  }) {
+    const result = await requestJson<{ success: boolean; affiliateId: string }>("/api/admin/affiliates", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+
+    const affiliates = await this.getAffiliates();
+    return affiliates.find((item) => item.id === result.affiliateId) ?? null;
+  },
+
   async toggleAffiliateStatus(id: string) {
     await requestJson<{ success: boolean }>(`/api/admin/affiliates/${id}/toggle-status`, {
       method: "POST",

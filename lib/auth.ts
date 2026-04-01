@@ -272,11 +272,14 @@ async function getUserByEmail(email: string) {
   return result.rows[0] ?? null;
 }
 
-export async function registerAffiliateUser(payload: {
+async function createAffiliateUserRecord(payload: {
   name: string;
   email: string;
   password: string;
   phone?: string;
+  city?: string;
+  state?: string;
+  status?: "active" | "pending" | "blocked";
 }) {
   await ensureAuthReady();
 
@@ -301,17 +304,18 @@ export async function registerAffiliateUser(payload: {
       `
         INSERT INTO affiliates (
           id, name, email, phone, status, joined_at, last_active_at, city, state
-        ) VALUES ($1,$2,$3,$4,'pending',$5,$6,$7,$8);
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9);
       `,
       [
         affiliateId,
         payload.name.trim(),
         email,
         payload.phone?.trim() ?? "",
+        payload.status ?? "pending",
         nowDate(),
         nowDate(),
-        "Nao informado",
-        "NA",
+        payload.city?.trim() || "Nao informado",
+        payload.state?.trim() || "NA",
       ]
     );
 
@@ -343,14 +347,42 @@ export async function registerAffiliateUser(payload: {
       affiliateId,
     };
 
-    const token = await createSession(user.id);
-    return { user, token };
+    return { user };
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
   } finally {
     client.release();
   }
+}
+
+export async function createAffiliateAccountAsAdmin(payload: {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+  status?: "active" | "pending" | "blocked";
+}) {
+  return createAffiliateUserRecord({
+    ...payload,
+    status: payload.status ?? "active",
+  });
+}
+
+export async function registerAffiliateUser(payload: {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+  city?: string;
+  state?: string;
+  status?: "active" | "pending" | "blocked";
+}) {
+  const { user } = await createAffiliateUserRecord(payload);
+  const token = await createSession(user.id);
+  return { user, token };
 }
 
 export async function loginWithEmail(payload: { email: string; password: string }) {
@@ -587,4 +619,75 @@ export async function updateCurrentUserProfile(payload: {
   }
 
   return getAccountProfile();
+}
+
+export async function updateCurrentUserPassword(payload: {
+  currentPassword: string;
+  newPassword: string;
+}) {
+  await ensureAuthReady();
+
+  const user = await requireCurrentUser();
+  const result = await getDb().query<{
+    password_hash: string;
+  }>("SELECT password_hash FROM users WHERE id = $1 LIMIT 1", [user.id]);
+
+  const current = result.rows[0];
+
+  if (!current) {
+    throw new AuthError("Conta nao encontrada.", 404);
+  }
+
+  const passwordMatches = await verifyPassword(payload.currentPassword, current.password_hash);
+
+  if (!passwordMatches) {
+    throw new AuthError("Senha atual invalida.", 400);
+  }
+
+  if (payload.newPassword.length < 6) {
+    throw new AuthError("A nova senha precisa ter pelo menos 6 caracteres.", 400);
+  }
+
+  const nextHash = await hashPassword(payload.newPassword);
+
+  await getDb().query(
+    `
+      UPDATE users
+      SET password_hash = $2, updated_at = NOW()
+      WHERE id = $1;
+    `,
+    [user.id, nextHash]
+  );
+
+  return { success: true };
+}
+
+export async function deactivateCurrentUserAccount() {
+  await ensureAuthReady();
+
+  const user = await requireCurrentUser();
+
+  await getDb().query(
+    `
+      UPDATE users
+      SET is_active = FALSE, updated_at = NOW()
+      WHERE id = $1;
+    `,
+    [user.id]
+  );
+
+  if (user.affiliateId) {
+    await getDb().query(
+      `
+        UPDATE affiliates
+        SET status = 'blocked'
+        WHERE id = $1;
+      `,
+      [user.affiliateId]
+    );
+  }
+
+  await logoutCurrentSession();
+
+  return { success: true };
 }
