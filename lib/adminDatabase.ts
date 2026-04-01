@@ -2,15 +2,6 @@
 
 import { getDb } from "@/lib/db";
 import {
-  adminAffiliatesMock,
-  adminCampaignMaterialsMock,
-  adminCampaignsMock,
-  adminCommissionsMock,
-  adminCouponLinksMock,
-  adminLeadsMock,
-  adminPlatformSettingsMock,
-} from "@/data/admin-mocks";
-import {
   AdminDashboardMetrics,
   Affiliate,
   AffiliateStatus,
@@ -24,6 +15,22 @@ import {
 } from "@/types/admin";
 
 let bootstrapPromise: Promise<void> | null = null;
+
+const emptyPlatformSettings: PlatformSettings = {
+  defaultCommissionPercent: 0,
+  minPayoutAmount: 0,
+  programStatus: "maintenance",
+  rules: [],
+  institutionalTexts: {
+    dashboardWelcome: "",
+    payoutPolicy: "",
+    supportMessage: "",
+  },
+  visual: {
+    primaryColor: "",
+    secondaryColor: "",
+  },
+};
 
 const nowDate = () => new Date().toISOString().slice(0, 10);
 const uid = (prefix: string) =>
@@ -151,167 +158,6 @@ async function bootstrapDatabase() {
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `);
-
-    const affiliatesCountResult = await client.query<{ count: string }>(
-      "SELECT COUNT(*)::text as count FROM affiliates"
-    );
-    const hasSeed = Number(affiliatesCountResult.rows[0]?.count ?? 0) > 0;
-
-    if (!hasSeed) {
-      for (const affiliate of adminAffiliatesMock) {
-        await client.query(
-          `
-            INSERT INTO affiliates (
-              id, name, email, phone, status, joined_at, last_active_at, city, state
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-            ON CONFLICT (id) DO NOTHING;
-          `,
-          [
-            affiliate.id,
-            affiliate.name,
-            affiliate.email,
-            affiliate.phone,
-            affiliate.status,
-            affiliate.joinedAt,
-            affiliate.lastActiveAt,
-            affiliate.city,
-            affiliate.state,
-          ]
-        );
-      }
-
-      for (const lead of adminLeadsMock) {
-        await client.query(
-          `
-            INSERT INTO leads (
-              id, affiliate_id, name, origin, status, potential_value, created_at, updated_at, notes
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-            ON CONFLICT (id) DO NOTHING;
-          `,
-          [
-            lead.id,
-            lead.affiliateId,
-            lead.name,
-            lead.origin,
-            lead.status,
-            lead.potentialValue,
-            lead.createdAt,
-            lead.updatedAt,
-            lead.notes,
-          ]
-        );
-      }
-
-      for (const commission of adminCommissionsMock) {
-        await client.query(
-          `
-            INSERT INTO commissions (
-              id, affiliate_id, lead_id, order_id, order_value, amount, status, created_at, approved_at, paid_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
-            ON CONFLICT (id) DO NOTHING;
-          `,
-          [
-            commission.id,
-            commission.affiliateId,
-            commission.leadId,
-            commission.orderId,
-            commission.orderValue,
-            commission.amount,
-            commission.status,
-            commission.createdAt,
-            commission.approvedAt ?? null,
-            commission.paidAt ?? null,
-          ]
-        );
-      }
-
-      for (const campaign of adminCampaignsMock) {
-        await client.query(
-          `
-            INSERT INTO campaigns (
-              id, name, description, status, start_date, end_date, created_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7)
-            ON CONFLICT (id) DO NOTHING;
-          `,
-          [
-            campaign.id,
-            campaign.name,
-            campaign.description,
-            campaign.status,
-            campaign.startDate,
-            campaign.endDate,
-            campaign.createdAt,
-          ]
-        );
-      }
-
-      for (const material of adminCampaignMaterialsMock) {
-        await client.query(
-          `
-            INSERT INTO campaign_materials (
-              id, campaign_id, title, type, description, url, file_name, is_published, created_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-            ON CONFLICT (id) DO NOTHING;
-          `,
-          [
-            material.id,
-            material.campaignId,
-            material.title,
-            material.type,
-            material.description,
-            material.url,
-            material.fileName ?? null,
-            material.isPublished,
-            material.createdAt,
-          ]
-        );
-      }
-
-      for (const coupon of adminCouponLinksMock) {
-        await client.query(
-          `
-            INSERT INTO coupons (
-              id, code, link, status, affiliate_id, discount_percent, commission_percent, created_at, expires_at
-            ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-            ON CONFLICT (id) DO NOTHING;
-          `,
-          [
-            coupon.id,
-            coupon.code,
-            coupon.link,
-            coupon.status,
-            coupon.affiliateId ?? null,
-            coupon.discountPercent,
-            coupon.commissionPercent,
-            coupon.createdAt,
-            coupon.expiresAt ?? null,
-          ]
-        );
-      }
-
-      await client.query(
-        `
-          INSERT INTO settings (
-            id,
-            default_commission_percent,
-            min_payout_amount,
-            program_status,
-            rules,
-            institutional_texts,
-            visual
-          ) VALUES (1,$1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb)
-          ON CONFLICT (id) DO NOTHING;
-        `,
-        [
-          adminPlatformSettingsMock.defaultCommissionPercent,
-          adminPlatformSettingsMock.minPayoutAmount,
-          adminPlatformSettingsMock.programStatus,
-          JSON.stringify(adminPlatformSettingsMock.rules),
-          JSON.stringify(adminPlatformSettingsMock.institutionalTexts),
-          JSON.stringify(adminPlatformSettingsMock.visual),
-        ]
-      );
-    }
 
     await client.query("COMMIT");
   } catch (error) {
@@ -530,7 +376,7 @@ async function querySettings() {
   const row = result.rows[0];
 
   if (!row) {
-    return adminPlatformSettingsMock;
+    return emptyPlatformSettings;
   }
 
   return {
@@ -540,9 +386,9 @@ async function querySettings() {
     rules: parseJson<string[]>(row.rules, []),
     institutionalTexts: parseJson<PlatformSettings["institutionalTexts"]>(
       row.institutional_texts,
-      adminPlatformSettingsMock.institutionalTexts
+      emptyPlatformSettings.institutionalTexts
     ),
-    visual: parseJson<PlatformSettings["visual"]>(row.visual, adminPlatformSettingsMock.visual),
+    visual: parseJson<PlatformSettings["visual"]>(row.visual, emptyPlatformSettings.visual),
   } as PlatformSettings;
 }
 
@@ -1054,16 +900,25 @@ export async function updateSettingsInDb(payload: Partial<PlatformSettings>) {
 
   await getDb().query(
     `
-      UPDATE settings
+      INSERT INTO settings (
+        id,
+        default_commission_percent,
+        min_payout_amount,
+        program_status,
+        rules,
+        institutional_texts,
+        visual,
+        updated_at
+      ) VALUES (1,$1,$2,$3,$4::jsonb,$5::jsonb,$6::jsonb,NOW())
+      ON CONFLICT (id) DO UPDATE
       SET
-        default_commission_percent = $1,
-        min_payout_amount = $2,
-        program_status = $3,
-        rules = $4::jsonb,
-        institutional_texts = $5::jsonb,
-        visual = $6::jsonb,
-        updated_at = NOW()
-      WHERE id = 1;
+        default_commission_percent = EXCLUDED.default_commission_percent,
+        min_payout_amount = EXCLUDED.min_payout_amount,
+        program_status = EXCLUDED.program_status,
+        rules = EXCLUDED.rules,
+        institutional_texts = EXCLUDED.institutional_texts,
+        visual = EXCLUDED.visual,
+        updated_at = NOW();
     `,
     [
       next.defaultCommissionPercent,

@@ -72,7 +72,7 @@ export default function AdminDashboardModule({
     <section className="space-y-6">
       <SectionTitle
         title="Visao Geral"
-        description="Metricas centrais do programa de afiliados com dados mockados"
+        description="Metricas centrais do programa de afiliados"
       />
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">

@@ -69,7 +69,7 @@ export default function HomeDashboard() {
       .filter((item) => item.status === "paid")
       .reduce((sum, item) => sum + item.amount, 0);
     const conversoes = filteredLeads.filter((item) => item.status === "won").length;
-    const totalCliques = filteredLeads.length * 37;
+    const totalCliques = 0;
     const taxaConversao = filteredLeads.length
       ? (conversoes / filteredLeads.length) * 100
       : 0;

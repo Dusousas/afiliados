@@ -55,7 +55,7 @@ export default function AdminHeader({
           <p className="text-sm text-slate-300">{meta.subtitle}</p>
         </div>
         <div className="rounded-full border border-slate-600 bg-slate-900/40 px-4 py-2 text-xs text-slate-300">
-          {note ?? "Dados mockados para validar fluxo e interface"}
+          {note ?? "Dados sincronizados com o banco"}
         </div>
       </div>
     </header>
